@@ -1,56 +1,52 @@
-package org.example.povi.domain.mission.entity;
+package org.example.povi.domain.mission.entity
 
-import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.example.povi.domain.user.entity.User;
-import org.example.povi.global.entity.BaseEntity;
-
-import java.time.LocalDate;
+import jakarta.persistence.*
+import org.example.povi.domain.user.entity.User
+import org.example.povi.global.entity.BaseEntity
+import java.time.LocalDate
 
 @Entity
-@Table(name = "user_missions", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "mission_date", "mission_id"}))
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AttributeOverride(name = "id", column = @Column(name = "user_mission_id"))
-public class UserMission extends BaseEntity {
-
+@Table(
+    name = "user_missions",
+    uniqueConstraints = [UniqueConstraint(columnNames = ["user_id", "mission_date", "mission_id"])]
+)
+@AttributeOverride(name = "id", column = Column(name = "user_mission_id"))
+class UserMission(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    var user: User,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mission_id", nullable = false)
-    private Mission mission;
+    var mission: Mission,
+
+    @Column(name = "mission_date", nullable = false)
+    var missionDate: LocalDate,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private MissionStatus status = MissionStatus.IN_PROGRESS;
+    var status: MissionStatus = MissionStatus.IN_PROGRESS
+) : BaseEntity() {
 
-    @Column(name = "mission_date", nullable = false)
-    private LocalDate missionDate;
+    // JPA 기본 생성자
+    protected constructor() : this(
+        user = User.builder().build(),
+        mission = Mission(),
+        missionDate = LocalDate.now()
+    )
 
-
-    public enum MissionStatus {
-        IN_PROGRESS, // 진행중
-        COMPLETED    // 완료
-    }
-
-    // 필요한 값만 받는 생성자
-    public UserMission(User user, Mission mission, LocalDate missionDate) {
-        this.user = user;
-        this.mission = mission;
-        this.missionDate = missionDate;
-        this.status = MissionStatus.IN_PROGRESS;
+    enum class MissionStatus {
+        IN_PROGRESS,  // 진행중
+        COMPLETED // 완료
     }
 
     // 미션 완료
-    public void completeMission() {
-        this.status = MissionStatus.COMPLETED;
+    fun completeMission() {
+        this.status = MissionStatus.COMPLETED
     }
+
     // 미션 진행중으로 되돌리기
-    public void inProgressMission() {
-        this.status = MissionStatus.IN_PROGRESS;
+    fun inProgressMission() {
+        this.status = MissionStatus.IN_PROGRESS
     }
 }

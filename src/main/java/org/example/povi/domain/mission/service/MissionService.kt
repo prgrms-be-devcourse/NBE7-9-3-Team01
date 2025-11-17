@@ -1,143 +1,138 @@
-package org.example.povi.domain.mission.service;
+package org.example.povi.domain.mission.service
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.example.povi.domain.mission.dto.response.MissionResponse;
-import org.example.povi.domain.mission.dto.response.MissionHistoryResponse;
-import org.example.povi.domain.mission.entity.Mission;
-import org.example.povi.domain.mission.entity.UserMission;
-import org.example.povi.domain.mission.repository.MissionRepository;
-import org.example.povi.domain.mission.repository.UserMissionRepository;
-import org.example.povi.domain.user.repository.UserRepository;
-import org.example.povi.domain.user.entity.User;
-import org.example.povi.domain.weather.OpenWeatherClient;
-import org.example.povi.domain.weather.WeatherTypeMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.example.povi.domain.mission.dto.response.MissionHistoryResponse
+import org.example.povi.domain.mission.dto.response.MissionResponse
+import org.example.povi.domain.mission.entity.Mission
+import org.example.povi.domain.mission.entity.Mission.EmotionType
+import org.example.povi.domain.mission.entity.Mission.WeatherType
+import org.example.povi.domain.mission.entity.UserMission
+import org.example.povi.domain.mission.entity.UserMission.MissionStatus
+import org.example.povi.domain.mission.repository.MissionRepository
+import org.example.povi.domain.mission.repository.UserMissionRepository
+import org.example.povi.domain.user.entity.User
+import org.example.povi.domain.user.repository.UserRepository
+import org.example.povi.domain.weather.OpenWeatherClient
+import org.example.povi.domain.weather.WeatherTypeMapper
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-@Slf4j
 @Service
-@RequiredArgsConstructor
-public class MissionService {
+class MissionService(
+    private val userMissionRepository: UserMissionRepository,
+    private val missionRepository: MissionRepository,
+    private val userRepository: UserRepository,
+    private val weatherClient: OpenWeatherClient,
+    private val weatherTypeMapper: WeatherTypeMapper
+) {
+    private val log = LoggerFactory.getLogger(MissionService::class.java)
 
-    private static final int DAILY_MISSION_COUNT = 3;
-
-    private final UserMissionRepository userMissionRepository;
-    private final MissionRepository missionRepository;
-    private final UserRepository userRepository;
-    private final OpenWeatherClient weatherClient;
-    private final WeatherTypeMapper weatherTypeMapper;
-
-    /** 오늘 저장본 조회 */
+    /** 오늘 저장본 조회  */
     @Transactional(readOnly = true)
-    public List<MissionResponse> readTodayMissions(Long userId) {
-        User user = findUser(userId);
-        LocalDate today = LocalDate.now();
+    fun readTodayMissions(userId: Long): List<MissionResponse> {
+        val user = findUser(userId)
+        val today = LocalDate.now()
 
         return userMissionRepository
-                .findAllByUserAndMissionDateOrderByIdAsc(user, today)
-                .stream()
-                .map(um -> new MissionResponse(um.getMission(), um.getStatus(), um.getId()))
-                .toList();
+            .findAllByUserAndMissionDateOrderByIdAsc(user, today)
+            .map { um -> MissionResponse(um.mission, um.status, um.id) }
     }
 
-    /** 오늘 최초 생성 (감정/위경도 필수) */
+    /** 오늘 최초 생성 (감정/위경도 필수)  */
     @Transactional
-    public List<MissionResponse> createTodayMissions(Long userId, Mission.EmotionType emotionType, Double latitude, Double longitude) {
-        User user = findUser(userId);
-        LocalDate today = LocalDate.now();
+    fun createTodayMissions(
+        userId: Long,
+        emotionType: EmotionType,
+        latitude: Double,
+        longitude: Double
+    ): List<MissionResponse> {
+        val user = findUser(userId)
+        val today = LocalDate.now()
 
         if (userMissionRepository.existsByUserAndMissionDate(user, today)) {
-            return readTodayMissions(userId);
-        }
-        if (emotionType == null || latitude == null || longitude == null) {
-            throw new IllegalArgumentException("emotionType, latitude, longitude가 필요합니다.");
+            return readTodayMissions(userId)
         }
 
-        List<Mission> candidates;
+        val candidates: List<Mission>
         try {
             // 1) 정상 경로: 실시간 날씨 결정 → 정확 매칭만
-            var snap = weatherClient.fetchSnapshot(latitude, longitude);
-            var decided = weatherTypeMapper.decide(snap.weatherMain(), snap.temperatureC(), snap.windMs());
+            val snap = weatherClient.fetchSnapshot(latitude, longitude)
+            val decided = weatherTypeMapper.decide(snap.weatherMain, snap.temperatureC, snap.windMs)
 
             candidates = missionRepository.findByEmotionTypeAndWeatherTypeIn(
-                    emotionType, java.util.List.of(decided));
+                emotionType, listOf(decided)
+            )
 
             // 정확 매칭 정책: 후보가 0이면 데이터 보강 필요를 바로 알림
-            if (candidates.isEmpty()) {
-                throw new IllegalStateException("해당 감정/날씨 미션이 없습니다: emotion="
-                        + emotionType + ", weather=" + decided + " — data.sql 보강 필요");
+            check(candidates.isNotEmpty()) {
+                "해당 감정/날씨 미션이 없습니다: emotion=$emotionType, weather=$decided — data.sql 보강 필요"
             }
-
-        } catch (Exception e) {
+        } catch (e: Exception) {
             // 2) 비상 경로: API 실패/매핑 불가 시에만 감정+ANY로 대체
-            log.warn("[OW] weather fetch/mapping failed, fallback to ANY: {}", e.toString());
-            candidates = missionRepository.findByEmotionTypeAndWeatherTypeIn(
-                    emotionType, java.util.List.of(Mission.WeatherType.ANY));
+            log.warn("[OW] weather fetch/mapping failed, fallback to ANY: {}", e.toString())
+            val fallbackCandidates = missionRepository.findByEmotionTypeAndWeatherTypeIn(
+                emotionType, listOf(WeatherType.ANY)
+            )
 
-            if (candidates.isEmpty()) {
-                // ANY마저 없으면 리턴할 게 없으므로 실패
-                throw new IllegalStateException("비상 대체(ANY) 미션도 없습니다: emotion=" + emotionType);
-            }
+            check(fallbackCandidates.isNotEmpty()) { "비상 대체(ANY) 미션도 없습니다: emotion=$emotionType" }
+            return createMissionsFromCandidates(fallbackCandidates, user, today)
         }
 
-        java.util.Collections.shuffle(candidates);
-        var picked = candidates.stream().limit(DAILY_MISSION_COUNT).toList();
-
-        var saved = picked.stream()
-                .map(m -> new UserMission(user, m, today))
-                .toList();
-        userMissionRepository.saveAll(saved);
-
-        return saved.stream()
-                .map(um -> new MissionResponse(um.getMission(), um.getStatus(), um.getId()))
-                .toList();
+        return createMissionsFromCandidates(candidates, user, today)
     }
 
-    private User findUser(Long userId) {
+    private fun createMissionsFromCandidates(
+        candidates: List<Mission>,
+        user: User,
+        today: LocalDate
+    ): List<MissionResponse> {
+        val shuffled = candidates.shuffled()
+        val picked = shuffled.take(DAILY_MISSION_COUNT)
+
+        val saved = picked.map { m -> UserMission(user, m, today) }
+        userMissionRepository.saveAll(saved)
+
+        return saved.map { um -> MissionResponse(um.mission, um.status, um.id) }
+    }
+
+    private fun findUser(userId: Long): User {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
+            .orElseThrow { IllegalArgumentException("사용자를 찾을 수 없습니다. userId=$userId") }
     }
 
     @Transactional
-    public void updateUserMissionStatus(Long userId, Long userMissionId, UserMission.MissionStatus status) {
-        User user = findUser(userId);
-        UserMission userMission = userMissionRepository.findByIdAndUser(userMissionId, user)
-                .orElseThrow(() -> new IllegalArgumentException("UserMission을 찾을 수 없습니다. userMissionId=" + userMissionId));
+    fun updateUserMissionStatus(userId: Long, userMissionId: Long, status: MissionStatus) {
+        val user = findUser(userId)
+        val userMission = userMissionRepository.findByIdAndUser(userMissionId, user)
+            .orElseThrow { IllegalArgumentException("UserMission을 찾을 수 없습니다. userMissionId=$userMissionId") }
 
-        if (status == UserMission.MissionStatus.COMPLETED) {
-            userMission.completeMission();
-        } else if (status == UserMission.MissionStatus.IN_PROGRESS) {
-            userMission.inProgressMission();
-        } else {
-            throw new IllegalArgumentException("허용되지 않는 상태값입니다: " + status);
+        when (status) {
+            MissionStatus.COMPLETED -> userMission.completeMission()
+            MissionStatus.IN_PROGRESS -> userMission.inProgressMission()
         }
     }
 
-    /** 미션 이력 조회 */
+    /** 미션 이력 조회  */
     @Transactional(readOnly = true)
-    public List<MissionHistoryResponse> getMissionHistory(Long userId) {
-        User user = findUser(userId);
-        List<UserMission> userMissions = userMissionRepository.findAllByUserOrderByMissionDateDesc(user);
-        
+    fun getMissionHistory(userId: Long): List<MissionHistoryResponse> {
+        val user = findUser(userId)
+        val userMissions = userMissionRepository.findAllByUserOrderByMissionDateDesc(user)
+
         // 날짜별로 그룹화
-        Map<LocalDate, List<UserMission>> missionsByDate = userMissions.stream()
-                .collect(Collectors.groupingBy(UserMission::getMissionDate));
-        
-        return missionsByDate.entrySet().stream()
-                .map(entry -> {
-                    LocalDate date = entry.getKey();
-                    List<MissionResponse> missionDetails = entry.getValue().stream()
-                            .map(um -> new MissionResponse(um.getMission(), um.getStatus(), um.getId()))
-                            .toList();
-                    return new MissionHistoryResponse(date, missionDetails);
-                })
-                .sorted((a, b) -> b.missionDate().compareTo(a.missionDate())) // 최신 날짜부터
-                .toList();
+        val missionsByDate = userMissions.groupBy { it.missionDate }
+
+        return missionsByDate.entries
+            .map { (date, missionList) ->
+                val missionDetails = missionList.map { um ->
+                    MissionResponse(um.mission, um.status, um.id)
+                }
+                MissionHistoryResponse(date, missionDetails)
+            }
+            .sortedByDescending { it.missionDate }  // 최신 날짜부터
+    }
+
+    companion object {
+        private const val DAILY_MISSION_COUNT = 3
     }
 }

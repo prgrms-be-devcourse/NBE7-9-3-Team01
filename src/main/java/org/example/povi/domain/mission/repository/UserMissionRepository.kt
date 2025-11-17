@@ -1,25 +1,23 @@
-package org.example.povi.domain.mission.repository;
+package org.example.povi.domain.mission.repository
 
-import org.example.povi.domain.user.entity.User;
-import org.example.povi.domain.mission.entity.UserMission;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import org.example.povi.domain.mission.entity.UserMission
+import org.example.povi.domain.user.entity.User
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.stereotype.Repository
+import java.time.LocalDate
+import java.util.*
 
 @Repository
-public interface UserMissionRepository extends JpaRepository<UserMission, Long> {
-    void deleteAllByUser(User user);
+interface UserMissionRepository : JpaRepository<UserMission, Long> {
+    fun deleteAllByUser(user: User)
 
-    boolean existsByUserAndMissionDate(User user, LocalDate missionDate);
+    fun existsByUserAndMissionDate(user: User, missionDate: LocalDate): Boolean
 
     // 일일미션을 화면에 항상 같은 순서로 보여주기 위해 정렬
-    List<UserMission> findAllByUserAndMissionDateOrderByIdAsc(User user, LocalDate missionDate);
+    fun findAllByUserAndMissionDateOrderByIdAsc(user: User, missionDate: LocalDate): List<UserMission>
 
-    Optional<UserMission> findByIdAndUser(Long id,User user);
-    
+    fun findByIdAndUser(id: Long, user: User): Optional<UserMission>
+
     // 미션 이력 조회 (날짜 내림차순)
-    List<UserMission> findAllByUserOrderByMissionDateDesc(User user);
+    fun findAllByUserOrderByMissionDateDesc(user: User): List<UserMission>
 }

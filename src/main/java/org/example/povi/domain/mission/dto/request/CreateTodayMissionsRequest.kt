@@ -1,22 +1,29 @@
-package org.example.povi.domain.mission.dto.request;
+package org.example.povi.domain.mission.dto.request
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import org.example.povi.domain.mission.entity.Mission;
+import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.constraints.NotNull
+import org.example.povi.domain.mission.entity.Mission.EmotionType
 
 @Schema(description = "오늘 미션 생성을 위한 요청 DTO")
-public record CreateTodayMissionsRequest(
+data class CreateTodayMissionsRequest(
+    @field:Schema(
+        description = "사용자의 감정 상태",
+        example = "HAPPY"
+    )
+    @field:NotNull
+    val emotionType: EmotionType,
 
-        @NotNull
-        @Schema(description = "사용자의 감정 상태", example = "HAPPY")
-        Mission.EmotionType emotionType,
+    @field:Schema(
+        description = "위도",
+        example = "37.5665"
+    )
+    @field:NotNull
+    val latitude: Double,
 
-        @NotNull
-        @Schema(description = "위도", example = "37.5665")
-        Double latitude,
-
-        @NotNull
-        @Schema(description = "경도", example = "126.9780")
-        Double longitude
-
-) {}
+    @field:Schema(
+        description = "경도",
+        example = "126.9780"
+    )
+    @field:NotNull
+    val longitude: Double
+) 
