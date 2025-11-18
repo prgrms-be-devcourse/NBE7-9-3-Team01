@@ -1,7 +1,6 @@
-package org.example.povi.domain.community.entity;
+package org.example.povi.domain.community.entity
 
-public enum CommunityEmoticon {
-
+enum class CommunityEmoticon {
     HAPPY,
     LOL,
     NERVOUS,
