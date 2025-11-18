@@ -1,18 +1,18 @@
-package org.example.povi.domain.diary.enums;
+package org.example.povi.domain.diary.enums
+
+import org.example.povi.domain.user.follow.service.FollowService
 
 
-import org.example.povi.domain.user.follow.service.FollowService;
-
-public enum Visibility {
+enum class Visibility {
     PUBLIC,
     FRIEND,
     PRIVATE;
 
-    public boolean canAccess(Long viewerId, Long ownerId, FollowService followService) {
-        return switch (this) {
-            case PUBLIC -> true;
-            case FRIEND -> followService.isMutualFollow(viewerId, ownerId);
-            case PRIVATE -> false;
-        };
+    fun canAccess(viewerId: Long?, ownerId: Long?, followService: FollowService): Boolean {
+        return when (this) {
+            Visibility.PUBLIC -> true
+            Visibility.FRIEND -> followService.isMutualFollow(viewerId, ownerId)
+            Visibility.PRIVATE -> false
+        }
     }
 }

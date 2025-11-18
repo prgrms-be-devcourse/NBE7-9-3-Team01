@@ -1,9 +1,10 @@
-package org.example.povi.domain.diary.enums;
+package org.example.povi.domain.diary.enums
 
-import lombok.Getter;
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
-@Getter
-public enum MoodEmoji {
+enum class MoodEmoji(val label: String, val valence: Int) {
     HAPPY("😊 행복해요", 10),
     JOYFUL("😂 즐거워요", 8),
     CALM("😌 평온해요", 4),
@@ -13,34 +14,29 @@ public enum MoodEmoji {
     TIRED("😭 힘들어요", -8),
     ANGRY("😤 화나요", -10);
 
-    private final String label;
-    private final int valence;
-
-    MoodEmoji(String label, int valence) {
-        this.label = label;
-        this.valence = valence;
+    fun label(): String {
+        return label
     }
 
-    public String label() {
-        return label;
+    fun valence(): Int {
+        return valence
     }
 
-    public int valence() {
-        return valence;
-    }
-
-    //평균 점수와 가장 가까운 감정 반환
-    public static MoodEmoji fromValence(double averageScore) {
-        double clampedScore = Math.max(-10, Math.min(10, averageScore));
-        MoodEmoji mostSimilarEmotion = NEUTRAL;
-        double smallestDifference = Double.MAX_VALUE;
-        for (MoodEmoji m : values()) {
-            double d = Math.abs(m.valence - clampedScore);
-            if (d < smallestDifference) {
-                smallestDifference = d;
-                mostSimilarEmotion = m;
+    companion object {
+        //평균 점수와 가장 가까운 감정 반환
+        @JvmStatic
+        fun fromValence(averageScore: Double): MoodEmoji {
+            val clampedScore = max(-10.0, min(10.0, averageScore))
+            var mostSimilarEmotion = MoodEmoji.NEUTRAL
+            var smallestDifference = Double.MAX_VALUE
+            for (m in MoodEmoji.entries) {
+                val d = abs(m.valence - clampedScore)
+                if (d < smallestDifference) {
+                    smallestDifference = d
+                    mostSimilarEmotion = m
+                }
             }
+            return mostSimilarEmotion
         }
-        return mostSimilarEmotion;
     }
 }
