@@ -1,10 +1,13 @@
-package org.example.povi.domain.diary.like.dto;
+package org.example.povi.domain.diary.like.dto
 
-public record DiaryPostLikeRes(
-        boolean liked,
-        long likeCount
+@JvmRecord
+data class DiaryPostLikeRes(
+    val liked: Boolean,
+    val likeCount: Long
 ) {
-    public static DiaryPostLikeRes of(boolean liked, long likeCount) {
-        return new DiaryPostLikeRes(liked, likeCount);
+    companion object {
+        fun of(liked: Boolean, likeCount: Long): DiaryPostLikeRes {
+            return DiaryPostLikeRes(liked, likeCount)
+        }
     }
 }

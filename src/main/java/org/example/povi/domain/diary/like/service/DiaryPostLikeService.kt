@@ -1,91 +1,97 @@
-package org.example.povi.domain.diary.like.service;
+package org.example.povi.domain.diary.like.service
 
-import lombok.RequiredArgsConstructor;
-import org.example.povi.domain.diary.like.dto.DiaryPostLikeRes;
-import org.example.povi.domain.diary.like.entity.DiaryPostLike;
-import org.example.povi.domain.diary.like.repository.DiaryPostLikeRepository;
-import org.example.povi.domain.diary.post.entity.DiaryPost;
-import org.example.povi.domain.diary.post.repository.DiaryPostRepository;
-import org.example.povi.domain.user.entity.User;
-import org.example.povi.domain.user.follow.service.FollowService;
-import org.example.povi.domain.user.repository.UserRepository;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
+import org.example.povi.domain.diary.like.dto.DiaryPostLikeRes
+import org.example.povi.domain.diary.like.entity.DiaryPostLike
+import org.example.povi.domain.diary.like.repository.DiaryPostLikeRepository
+import org.example.povi.domain.diary.post.entity.DiaryPost
+import org.example.povi.domain.diary.post.repository.DiaryPostRepository
+import org.example.povi.domain.user.entity.User
+import org.example.povi.domain.user.follow.service.FollowService
+import org.example.povi.domain.user.repository.UserRepository
+import org.springframework.http.HttpStatus
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 
 @Service
-@RequiredArgsConstructor
-public class DiaryPostLikeService {
-
-    private final DiaryPostLikeRepository diaryPostLikeRepository;
-    private final DiaryPostRepository diaryPostRepository;
-    private final UserRepository userRepository;
-    private final FollowService followService;
+class DiaryPostLikeService(
+    private val diaryPostLikeRepository: DiaryPostLikeRepository,
+    private val diaryPostRepository: DiaryPostRepository,
+    private val userRepository: UserRepository,
+    private val followService: FollowService
+) {
 
     /**
      * 좋아요 토글: 결과 DTO 반환 (liked=true: 추가, false: 취소)
      */
     @Transactional
-    public DiaryPostLikeRes toggle(Long postId, Long userId) {
-         DiaryPost post = checkAccessOrThrow(postId, userId);
-        User user = findUserOrThrow(userId);
+    fun toggle(postId: Long, userId: Long): DiaryPostLikeRes {
+        val post = checkAccessOrThrow(postId, userId)
+        val user = findUserOrThrow(userId)
 
-        final boolean liked;
-        if (diaryPostLikeRepository.existsByPostIdAndUserId(postId, userId)) {
-            diaryPostLikeRepository.deleteByPostIdAndUserId(postId, userId);
-            liked = false;
+        val liked = if (diaryPostLikeRepository.existsByPostIdAndUserId(postId, userId)) {
+            diaryPostLikeRepository.deleteByPostIdAndUserId(postId, userId)
+            false
         } else {
-            diaryPostLikeRepository.save(DiaryPostLike.of(post, user));
-            liked = true;
+            diaryPostLikeRepository.save(DiaryPostLike.of(post, user))
+            true
         }
 
-        long count = countLikesByPostId(postId);
-        return new DiaryPostLikeRes(liked, count);
+        val count = countLikesByPostId(postId)
+        return DiaryPostLikeRes(liked, count)
     }
 
     /**
      * 내 좋아요 여부 + 현재 좋아요 수
      */
     @Transactional(readOnly = true)
-    public DiaryPostLikeRes me(Long postId, Long userId) {
-        checkAccessOrThrow(postId, userId);
-        boolean liked = diaryPostLikeRepository.existsByPostIdAndUserId(postId, userId);
-        long count = countLikesByPostId(postId);
+    fun me(postId: Long, userId: Long): DiaryPostLikeRes {
+        checkAccessOrThrow(postId, userId)
+        val liked = diaryPostLikeRepository.existsByPostIdAndUserId(postId, userId)
+        val count = countLikesByPostId(postId)
 
-        return new DiaryPostLikeRes(liked, count);
+        return DiaryPostLikeRes(liked, count)
     }
 
     /**
      * 좋아요 수
      */
     @Transactional(readOnly = true)
-    public long count(Long postId) {
+    fun count(postId: Long): Long {
         if (!diaryPostRepository.existsById(postId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글이 존재하지 않습니다.");
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "게시글이 존재하지 않습니다.")
         }
-        return countLikesByPostId(postId);
+        return countLikesByPostId(postId)
     }
 
 
-    private long countLikesByPostId(Long postId) {
-        return diaryPostLikeRepository.countByPostId(postId);
+    private fun countLikesByPostId(postId: Long): Long {
+        return diaryPostLikeRepository.countByPostId(postId)
     }
 
-    /** 존재/가시성 검증 후 게시글 반환 */
-    private DiaryPost checkAccessOrThrow(Long postId, Long viewerId) {
-        DiaryPost post = diaryPostRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글이 존재하지 않습니다."));
+    /** 존재/가시성 검증 후 게시글 반환  */
+    private fun checkAccessOrThrow(postId: Long, viewerId: Long): DiaryPost {
+        val post = diaryPostRepository.findById(postId)
+            .orElseThrow {
+                ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "게시글이 존재하지 않습니다."
+                )
+            }
         if (!canAccessPost(viewerId, post)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "이 게시글에 접근할 수 없습니다.");
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "이 게시글에 접근할 수 없습니다.")
         }
-        return post;
+        return post
     }
 
-    private User findUserOrThrow(Long userId) {
+    private fun findUserOrThrow(userId: Long): User {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+            .orElseThrow {
+                ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "사용자가 존재하지 않습니다."
+                )
+            }
     }
 
     /**
@@ -95,11 +101,11 @@ public class DiaryPostLikeService {
      * - FRIEND: 맞팔만 허용
      * - PRIVATE: 불허
      */
-    private boolean canAccessPost(Long viewerId, DiaryPost post) {
-        Long ownerId = post.getUser().getId();
-        if (viewerId.equals(ownerId)) return true;
+    private fun canAccessPost(viewerId: Long, post: DiaryPost): Boolean {
+        val ownerId = post.user.id
+        if (viewerId == ownerId) return true
 
-        return post.getVisibility().canAccess(viewerId, ownerId, followService);
+        return post.visibility.canAccess(viewerId, ownerId, followService)
     }
 }
 
