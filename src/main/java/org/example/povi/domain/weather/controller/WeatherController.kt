@@ -1,40 +1,45 @@
-package org.example.povi.domain.weather.controller;
+package org.example.povi.domain.weather.controller
 
-import lombok.RequiredArgsConstructor;
-import org.example.povi.domain.weather.OpenWeatherClient;
-import org.example.povi.domain.weather.dto.WeatherResponse;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.example.povi.domain.weather.OpenWeatherClient
+import org.example.povi.domain.weather.dto.WeatherResponse
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+import java.util.Locale
+import kotlin.math.roundToInt
 
 @RestController
 @RequestMapping("/api/weather")
-@RequiredArgsConstructor
-public class WeatherController {
-
-    private final OpenWeatherClient weatherClient;
+class WeatherController(
+    private val weatherClient: OpenWeatherClient
+) {
 
     @GetMapping
-    public ResponseEntity<WeatherResponse> getWeather(
-            @RequestParam double latitude,
-            @RequestParam double longitude) {
-        try {
-            var snapshot = weatherClient.fetchSnapshot(latitude, longitude);
-            var response = new WeatherResponse(
-                    snapshot.weatherMain(),
-                    snapshot.weatherMain().toLowerCase() + " weather",
-                    (int) Math.round(snapshot.temperatureC()),
-                    (int) Math.round(snapshot.windMs())
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
+    fun getWeather(
+        @RequestParam latitude: Double,
+        @RequestParam longitude: Double
+    ): ResponseEntity<WeatherResponse> {
+        return try {
+            val snapshot = weatherClient.fetchSnapshot(latitude, longitude)
+            val weatherMain = snapshot.weatherMain ?: "Clear"
+            val response = WeatherResponse(
+                weatherMain,
+                "${weatherMain.lowercase(Locale.getDefault())} weather",
+                snapshot.temperatureC.roundToInt(),
+                snapshot.windMs.roundToInt()
+            )
+            ResponseEntity.ok(response)
+        } catch (e: Exception) {
             // 날씨 정보 가져오기 실패 시 기본값 반환
-            var response = new WeatherResponse(
-                    "Clear",
-                    "clear weather",
-                    20,
-                    0
-            );
-            return ResponseEntity.ok(response);
+            val response = WeatherResponse(
+                "Clear",
+                "clear weather",
+                20,
+                0
+            )
+            ResponseEntity.ok(response)
         }
     }
 }

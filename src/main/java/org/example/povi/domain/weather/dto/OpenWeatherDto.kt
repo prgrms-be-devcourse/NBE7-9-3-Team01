@@ -1,34 +1,43 @@
-package org.example.povi.domain.weather.dto;
+package org.example.povi.domain.weather.dto
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record OpenWeatherDto(
-        // weather[0].main -> "Clear" / "Clouds" / "Rain" ...
-        @JsonProperty("weather") List<Weather> weather,
-        
-        // main.temp -> 섭씨(when units=metric)
-        @JsonProperty("main") Main main,
-        
-        // wind.speed -> m/s
-        @JsonProperty("wind") Wind wind
+data class OpenWeatherDto(
+    @field:JsonProperty("weather")
+    @param:JsonProperty("weather")
+    val weather: List<Weather?>?,
+
+    @field:JsonProperty("main")
+    @param:JsonProperty("main")
+    val main: Main?,
+
+    @field:JsonProperty("wind")
+    @param:JsonProperty("wind")
+    val wind: Wind?
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Weather(
-            @JsonProperty("main") String main,
-            @JsonProperty("description") String description
-    ) {}
+    data class Weather(
+        @field:JsonProperty("main")
+        @param:JsonProperty("main")
+        val main: String?,
+        @field:JsonProperty("description")
+        @param:JsonProperty("description")
+        val description: String?
+    )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Main(
-            @JsonProperty("temp") Double temp
-    ) {}
+    data class Main(
+        @field:JsonProperty("temp")
+        @param:JsonProperty("temp")
+        val temp: Double?
+    )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Wind(
-            @JsonProperty("speed") Double speed // m/s
-    ) {}
+    data class Wind(
+        @field:JsonProperty("speed")
+        @param:JsonProperty("speed")
+        val speed: Double? // m/s
+    )
 }

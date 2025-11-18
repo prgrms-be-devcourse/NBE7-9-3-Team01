@@ -1,18 +1,12 @@
-package org.example.povi.domain.weather;
+package org.example.povi.domain.weather
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "openweather")
-public record OpenWeatherProperties(
-        String baseUrl,
-        String path,
-        String apiKey,
-        String units,
-        String exclude
-) {
-    public OpenWeatherProperties {
-        // 기본값 설정
-        if (units == null) units = "metric";
-        if (exclude == null) exclude = "minutely,hourly,alerts";
-    }
-}
+class OpenWeatherProperties(
+    val baseUrl: String?,
+    val path: String?,
+    val apiKey: String?,
+    val units: String? = "metric",
+    val exclude: String? = "minutely,hourly,alerts"
+)

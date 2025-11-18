@@ -1,8 +1,8 @@
-package org.example.povi.domain.weather.dto;
+package org.example.povi.domain.weather.dto
 
-public record WeatherResponse(
-        String main,
-        String description,
-        int temp,
-        int windSpeed
-) {}
+data class WeatherResponse(
+    val main: String?,
+    val description: String?,
+    val temp: Int,
+    val windSpeed: Int
+)
