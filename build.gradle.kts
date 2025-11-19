@@ -76,6 +76,7 @@ dependencies {
 
 	// Mockk — Kotlin 기반 mock library
 	testImplementation("io.mockk:mockk:1.13.10")
+	testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
 
 	// JUnit 5
 	testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
