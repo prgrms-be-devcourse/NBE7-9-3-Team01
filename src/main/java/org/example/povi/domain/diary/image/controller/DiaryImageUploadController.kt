@@ -1,74 +1,47 @@
-package org.example.povi.domain.diary.image.service
+package org.example.povi.domain.diary.image.controller
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.stereotype.Service
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.ArraySchema
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import org.example.povi.domain.diary.image.service.DiaryImageUploadService
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import java.io.File
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.*
 
-@Service
-class DiaryImageUploadService {
-    @Value("\${file.upload.diary.dir}")
-    private val uploadDir: String? = null // 예: /Users/you/povi-uploads
 
-    private val log: Logger = LoggerFactory.getLogger(DiaryImageUploadService::class.java)
+@RestController
+@RequestMapping("/diary-images")
+class DiaryImageUploadController(
+
+        private val diaryImageUploadService: DiaryImageUploadService
+) {
+
     /**
-     * 다이어리용 이미지 업로드
-     * - 로컬 폴더에 저장하고 /images/{uuid.ext} URL 목록 반환
+     * 다이어리 이미지 업로드
      */
-    fun upload(files: List<MultipartFile>?): List<String> {
-        val imageUrls: MutableList<String> = ArrayList()
-        if (files == null || files.isEmpty()) return imageUrls
-
-        val directory = File(uploadDir)
-        check(!(!directory.exists() && !directory.mkdirs())) { "업로드 경로 생성 실패: $uploadDir" }
-
-        for (file in files) {
-            if (file.isEmpty) continue
-
-            val contentType = file.contentType
-            require(!(contentType == null || !contentType.startsWith("image/"))) { "이미지 파일만 업로드할 수 있습니다." }
-
-            val extension = getExt(Objects.requireNonNull(file.originalFilename, "파일명 없음"))
-            val stored = UUID.randomUUID().toString() + "." + extension
-
-            try {
-                file.transferTo(File(fullPath(stored)))
-                imageUrls.add("/images/diary/$stored")
-            } catch (e: IOException) {
-                log.error("Diary image delete failed: {}", e.message)
-                throw RuntimeException("다이어리 이미지 업로드 실패", e)
-            }
-        }
-        return imageUrls
+    @Operation(summary = "일기 이미지 업로드", description = "여러 개의 일기 이미지를 업로드하고 URL 목록을 반환합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "업로드 성공", content = [Content(array = ArraySchema(schema = Schema(implementation = String::class)))]), ApiResponse(responseCode = "400", description = "잘못된 요청 (e.g., 이미지 파일 없음)")])
+    @PostMapping
+    fun uploadDiaryImages(
+            @RequestPart("images") images: List<MultipartFile>
+    ): ResponseEntity<List<String>> {
+        val uploadedUrls = diaryImageUploadService.upload(images)
+        return ResponseEntity.ok(uploadedUrls)
     }
 
     /**
-     * 다이어리 이미지 삭제 (URL → 실제 파일 경로 변환 후 삭제)
+     * 다이어리 이미지 삭제
      */
-    fun deleteByUrl(imageUrl: String) {
-        val filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1)
-        val path = Paths.get(fullPath(filename))
-        try {
-            Files.deleteIfExists(path)
-        } catch (e: IOException) {
-            log.error("Diary image delete failed: {}", e.message)
-            throw RuntimeException("다이어리 이미지 삭제 실패", e)
-        }
-    }
-
-    private fun fullPath(fileName: String): String {
-        return uploadDir + File.separator + fileName
-    }
-
-    private fun getExt(fileName: String): String {
-        val dotIndex = fileName.lastIndexOf('.')
-        require(dotIndex >= 0) { "확장자를 찾을 수 없습니다: $fileName" }
-        return fileName.substring(dotIndex + 1)
+    @Operation(summary = "일기 이미지 삭제", description = "URL을 이용해 업로드된 일기 이미지를 삭제합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "204", description = "삭제 성공"), ApiResponse(responseCode = "400", description = "잘못된 URL"), ApiResponse(responseCode = "404", description = "삭제할 이미지를 찾을 수 없음")])
+    @DeleteMapping
+    fun deleteDiaryImage(
+            @RequestParam("imageUrl") imageUrl: String
+    ): ResponseEntity<Void> {
+        diaryImageUploadService.deleteByUrl(imageUrl)
+        return ResponseEntity.noContent().build()
     }
 }
