@@ -36,7 +36,7 @@ class User(
     ) : BaseEntity() {
 
     // JPA 기본 생성자
-    protected constructor() : this(
+    constructor() : this(
         email = "",
         password = null,
         nickname = "",

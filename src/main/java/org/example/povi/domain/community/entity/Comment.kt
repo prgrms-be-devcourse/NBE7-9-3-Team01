@@ -20,7 +20,7 @@ class Comment @Builder constructor(
         val communityPost: CommunityPost) : BaseEntity() {
 
             //생성자
-    protected constructor() : this(
+    constructor() : this(
             content = "",
             user = User(), // 기본값 설정 필요
             communityPost = CommunityPost( // 기본값 설정 필요
