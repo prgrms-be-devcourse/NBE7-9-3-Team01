@@ -1,0 +1,40 @@
+package org.example.povi.domain.user.follow.repository
+
+import org.example.povi.domain.user.entity.User
+import org.example.povi.domain.user.follow.entity.Follow
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import org.springframework.stereotype.Repository
+
+@Repository
+interface FollowRepository : JpaRepository<Follow, Long> {
+    fun deleteAllByFollowerOrFollowing(follower: User, following: User)
+
+    // 내가 팔로우 중인 사용자들
+    @Query(
+        """
+            select f.following.id
+            from Follow f
+            where f.follower.id = :viewerId
+            
+            """
+    )
+    fun findFollowingIds(@Param("viewerId") viewerId: Long): Set<Long>
+
+    // 맞팔(친구) 사용자들
+    @Query(
+        """
+            select f1.following.id
+            from Follow f1
+            where f1.follower.id = :viewerId
+              and exists (
+                  select 1 from Follow f2
+                  where f2.follower.id = f1.following.id
+                    and f2.following.id = :viewerId
+              )
+            
+            """
+    )
+    fun findMutualFriendIds(@Param("viewerId") viewerId: Long): Set<Long>
+}
